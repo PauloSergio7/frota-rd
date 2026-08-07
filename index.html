@@ -498,6 +498,7 @@
                 <button class="nav-tab" id="btn-tab-documentos" onclick="mudarAba(event, 'aba-documentos')">Alertas</button>
                 <button class="nav-tab" id="btn-tab-manutencao" onclick="mudarAba(event, 'aba-manutencao')">🔧 Manutenção</button>
                 <button class="nav-tab" id="btn-tab-relatorio" onclick="mudarAba(event, 'aba-relatorio')">Relatório KM</button>
+                <button class="nav-tab" id="btn-tab-chaves" onclick="mudarAba(event, 'aba-chaves')">🔑 Controle Chaves</button>
                 <button class="nav-tab" id="btn-tab-base" style="background-color: var(--text-dark); color: white;" onclick="mudarAba(event, 'aba-base')">📁 Base de Dados / Backup</button>
             </div>
         </header>
@@ -740,7 +741,61 @@
             </div>
         </div>
 
-        <!-- ABA 6: BASE DE DADOS E BACKUP -->
+        <!-- ABA 6: CONTROLE DE CHAVES -->
+        <div id="aba-chaves" class="content-body">
+            <h3>🔑 Controle de Retirada de Chaves</h3>
+            <div class="action-panel">
+                <div class="form-row" style="align-items: flex-end;">
+                    <div class="form-inline">
+                        <label>Nome de quem pegou:</label>
+                        <input type="text" id="chaveNome" placeholder="Nome do motorista/colaborador" style="width: 220px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>Placa do Veículo:</label>
+                        <select id="chavePlacaSelect" onchange="aoSelecionarPlacaChave(this.value)" style="width: 180px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; background: var(--bg-main); outline: none;">
+                            <option value="">Selecione a Placa</option>
+                        </select>
+                    </div>
+                    <div class="form-inline">
+                        <label>Modelo do Veículo:</label>
+                        <input type="text" id="chaveModelo" placeholder="Preenchimento automático" style="width: 180px; background: #e2e8f0;" readonly>
+                    </div>
+                    <div class="form-inline">
+                        <label>Data Entrega:</label>
+                        <input type="date" id="chaveDataEntrega" style="width: 140px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>Data da Devolução:</label>
+                        <input type="date" id="chaveDataDevolucao" style="width: 140px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>Cidade:</label>
+                        <input type="text" id="chaveCidade" placeholder="Cidade destino" style="width: 130px;">
+                    </div>
+                    <button class="btn btn-success" onclick="salvarChave()">Registrar Retirada</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Placa</th>
+                            <th>Modelo</th>
+                            <th>Data Entrega</th>
+                            <th>Data Devolução</th>
+                            <th>Cidade</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaChaves">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 7: BASE DE DADOS E BACKUP -->
         <div id="aba-base" class="content-body">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
                 <div>
@@ -919,8 +974,6 @@
 
         // =====================================================================
         // CONFIGURAÇÃO DO BANCO DE DADOS (Supabase)
-        // Preencha com os dados do SEU projeto gratuito em https://supabase.com
-        // Veja o passo a passo enviado junto com este arquivo.
         // =====================================================================
         const SUPABASE_URL = "https://pmnuxjufhmwoniasxvle.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbnV4anVmaG13b25pYXN4dmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwODI1MzYsImV4cCI6MjEwMTY1ODUzNn0.QDyX6FGTb1pdepzTsUI8SpSjvKy8nI877zgb1tCu-zk";
@@ -931,6 +984,7 @@
             : null;
 
         let baseFrota = [];
+        let baseChaves = []; // Array para armazenar as chaves retiradas
         let placaAtivaSelecionada = "";
         let placaFichaSelecionada = "";
         let placaEditandoManutencao = null;
@@ -946,7 +1000,7 @@
             }
         }
 
-        // Salva no banco de dados (com pequeno atraso para agrupar edições rápidas)
+        // Salva no banco de dados
         function salvarLocalStorage() {
             if (!supabaseClient) {
                 definirStatusSync('⚠️ Banco de dados não configurado', 'var(--danger)');
@@ -956,22 +1010,22 @@
             clearTimeout(salvandoTimeout);
             salvandoTimeout = setTimeout(async () => {
                 try {
-                    let json = JSON.stringify(baseFrota);
+                    let payload = { dados: baseFrota, chaves: baseChaves };
+                    let json = JSON.stringify(payload);
                     let { error } = await supabaseClient
                         .from('frota_dados')
-                        .update({ dados: baseFrota, atualizado_em: new Date().toISOString() })
+                        .update({ dados: payload, atualizado_em: new Date().toISOString() })
                         .eq('id', 1);
                     if (error) throw error;
                     ultimoJsonSalvo = json;
                     definirStatusSync('✅ Salvo na nuvem', 'var(--success)');
                 } catch (err) {
                     console.error('Erro ao salvar no banco de dados:', err);
-                    definirStatusSync('⚠️ Erro ao salvar (veja o console)', 'var(--danger)');
+                    definirStatusSync('⚠️ Erro ao salvar', 'var(--danger)');
                 }
             }, 500);
         }
 
-        // Busca a base de dados mais recente (usada na carga inicial e na sincronização periódica)
         async function buscarBaseRemota() {
             if (!supabaseClient) return null;
             try {
@@ -991,8 +1045,8 @@
         async function inicializarApp() {
             if (!supabaseClient) {
                 definirStatusSync('⚠️ Configure o Supabase no código', 'var(--danger)');
-                alert('O banco de dados ainda não foi configurado. Abra o arquivo HTML, procure por SUPABASE_URL e SUPABASE_ANON_KEY no início do <script> e cole os dados do seu projeto Supabase (veja o passo a passo enviado).');
                 baseFrota = JSON.parse(JSON.stringify(basePadrao));
+                baseChaves = [];
                 placaAtivaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
                 placaFichaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
                 popularFiltrosSelects();
@@ -1001,19 +1055,28 @@
             }
 
             definirStatusSync('🔄 Carregando dados...', 'var(--text-muted)');
-            let dados = await buscarBaseRemota();
+            let dadosRemotos = await buscarBaseRemota();
 
-            if (dados && Array.isArray(dados) && dados.length > 0) {
-                baseFrota = dados;
+            if (dadosRemotos) {
+                // Suporta tanto o formato antigo (array direto) quanto o novo objeto { dados, chaves }
+                if (Array.isArray(dadosRemotos)) {
+                    baseFrota = dadosRemotos;
+                    baseChaves = [];
+                } else {
+                    baseFrota = dadosRemotos.dados || JSON.parse(JSON.stringify(basePadrao));
+                    baseChaves = dadosRemotos.chaves || [];
+                }
             } else {
                 baseFrota = JSON.parse(JSON.stringify(basePadrao));
+                baseChaves = [];
                 try {
-                    await supabaseClient.from('frota_dados').upsert({ id: 1, dados: baseFrota, atualizado_em: new Date().toISOString() });
+                    let payload = { dados: baseFrota, chaves: baseChaves };
+                    await supabaseClient.from('frota_dados').upsert({ id: 1, dados: payload, atualizado_em: new Date().toISOString() });
                 } catch (err) {
                     console.error('Erro ao criar base inicial:', err);
                 }
             }
-            ultimoJsonSalvo = JSON.stringify(baseFrota);
+            ultimoJsonSalvo = JSON.stringify({ dados: baseFrota, chaves: baseChaves });
 
             placaAtivaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
             placaFichaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
@@ -1022,11 +1085,9 @@
             renderizarTudo();
             definirStatusSync('✅ Sincronizado', 'var(--success)');
 
-            // Verifica periodicamente se outra pessoa/dispositivo alterou os dados
             setInterval(sincronizarComRemoto, 8000);
         }
 
-        // Atualiza a tela automaticamente se os dados mudarem em outro dispositivo/aba
         async function sincronizarComRemoto() {
             if (pausarSincronizacao || !supabaseClient) return;
             let campoAtivo = document.activeElement;
@@ -1034,15 +1095,20 @@
             let modalAberto = document.querySelector('.modal[style*="flex"]');
             if (editandoAgora || modalAberto) return;
 
-            let dados = await buscarBaseRemota();
-            if (!dados) return;
-            let jsonRemoto = JSON.stringify(dados);
+            let dadosRemotos = await buscarBaseRemota();
+            if (!dadosRemotos) return;
+            
+            let f = dadosRemotos.dados || dadosRemotos;
+            let c = dadosRemotos.chaves || [];
+            let jsonRemoto = JSON.stringify({ dados: f, chaves: c });
+
             if (jsonRemoto !== ultimoJsonSalvo) {
-                baseFrota = dados;
+                baseFrota = f;
+                baseChaves = c;
                 ultimoJsonSalvo = jsonRemoto;
                 popularFiltrosSelects();
                 renderizarTudo();
-                definirStatusSync('🔄 Atualizado (outro dispositivo)', 'var(--info)');
+                definirStatusSync('🔄 Atualizado', 'var(--info)');
             }
         }
 
@@ -1062,10 +1128,12 @@
             preencherSelect('filtroRegional', regionais);
             preencherSelect('selectPlacaKm', placas);
             preencherSelect('selectPlacaFicha', placas);
+            preencherSelect('chavePlacaSelect', placas); // Atualiza o select de chaves com as placas cadastradas
 
             if(placas.length > 0) {
                 if(!placas.includes(placaFichaSelecionada)) placaFichaSelecionada = placas[0];
-                document.getElementById('selectPlacaFicha').value = placaFichaSelecionada;
+                let elFicha = document.getElementById('selectPlacaFicha');
+                if(elFicha) elFicha.value = placaFichaSelecionada;
             }
         }
 
@@ -1080,6 +1148,86 @@
                 opt.value = val;
                 opt.textContent = val;
                 sel.appendChild(opt);
+            });
+        }
+
+        // Preenche automaticamente o modelo ao escolher a placa na aba de chaves
+        function aoSelecionarPlacaChave(placa) {
+            let inputModelo = document.getElementById('chaveModelo');
+            if(!placa) {
+                inputModelo.value = '';
+                return;
+            }
+            let veiculo = baseFrota.find(i => i.placa === placa);
+            if(veiculo) {
+                inputModelo.value = veiculo.modelo || 'N/D';
+            } else {
+                inputModelo.value = '';
+            }
+        }
+
+        function salvarChave() {
+            let nome = document.getElementById('chaveNome').value.trim();
+            let placa = document.getElementById('chavePlacaSelect').value;
+            let modelo = document.getElementById('chaveModelo').value;
+            let dataEntrega = document.getElementById('chaveDataEntrega').value;
+            let dataDevolucao = document.getElementById('chaveDataDevolucao').value;
+            let cidade = document.getElementById('chaveCidade').value.trim();
+
+            if(!nome || !placa) {
+                alert("Preencha o nome de quem pegou e selecione a placa do veículo.");
+                return;
+            }
+
+            baseChaves.push({
+                nome,
+                placa,
+                modelo,
+                dataEntrega,
+                dataDevolucao,
+                cidade
+            });
+
+            salvarLocalStorage();
+            renderizarTabelaChaves();
+
+            // Limpa os campos do formulário
+            document.getElementById('chaveNome').value = '';
+            document.getElementById('chavePlacaSelect').value = '';
+            document.getElementById('chaveModelo').value = '';
+            document.getElementById('chaveDataEntrega').value = '';
+            document.getElementById('chaveDataDevolucao').value = '';
+            document.getElementById('chaveCidade').value = '';
+        }
+
+        function removerChave(index) {
+            if(confirm("Deseja remover este registro de chave?")) {
+                baseChaves.splice(index, 1);
+                salvarLocalStorage();
+                renderizarTabelaChaves();
+            }
+        }
+
+        function renderizarTabelaChaves() {
+            let tbody = document.getElementById('tabelaChaves');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            baseChaves.forEach((item, index) => {
+                let entregaFormatada = item.dataEntrega ? new Date(item.dataEntrega + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+                let devolucaoFormatada = item.dataDevolucao ? new Date(item.dataDevolucao + 'T00:00:00').toLocaleDateString('pt-BR') : '<span class="badge badge-warning">Pendente</span>';
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${item.nome}</b></td>
+                    <td><b>${item.placa || '-'}</b></td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>${entregaFormatada}</td>
+                    <td>${devolucaoFormatada}</td>
+                    <td>${item.cidade || '-'}</td>
+                    <td><button class="btn btn-danger" style="padding: 6px 10px; font-size: 0.75rem;" onclick="removerChave(${index})">🗑️</button></td>
+                `;
+                tbody.appendChild(tr);
             });
         }
 
@@ -1102,6 +1250,7 @@
             renderizarManutencao(dadosFiltrados);
             renderizarRelatorioKm(dadosFiltrados);
             renderizarBaseCompleta(dadosFiltrados);
+            renderizarTabelaChaves();
             
             renderizarCards(dadosFiltrados);
             salvarLocalStorage();
@@ -1149,10 +1298,8 @@
 
             fonteDados.forEach(item => {
                 if(item.status === 'Operação') emOperacaoCount++;
-                
                 let temAlerta = false;
 
-                // 1. Alerta de Troca de Óleo (> 180 dias ou sem data)
                 if (item.dataUltimaTrocaOleo) {
                     let diffDias = (dataAtual - new Date(item.dataUltimaTrocaOleo)) / (1000 * 60 * 60 * 24);
                     if (diffDias > 180) temAlerta = true;
@@ -1160,12 +1307,9 @@
                     temAlerta = true;
                 }
 
-                // 2. Alerta de CRLV Vencido
                 if (calcularStatusCrlv(item.validadeCrlv) === "Vencido") {
                     temAlerta = true;
                 }
-
-                // [ATUALIZAÇÃO SOLICITADA]: O alarme de Alerta Ociosidade foi removido da contagem do card de veículos com alertas.
 
                 if (temAlerta) {
                     veiculosComAlertaCount++;
@@ -1178,6 +1322,7 @@
 
         function renderizarPainel(dados) {
             let tbody = document.getElementById('tabelaPainelPrincipal');
+            if(!tbody) return;
             tbody.innerHTML = '';
 
             dados.forEach(item => {
@@ -1207,13 +1352,22 @@
             let veiculoAtual = baseFrota.find(i => i.placa === placaAtivaSelecionada) || baseFrota[0];
             if(veiculoAtual) {
                 if(!placaAtivaSelecionada) placaAtivaSelecionada = veiculoAtual.placa;
-                document.getElementById('labelPlacaAtiva').innerText = veiculoAtual.placa;
-                document.getElementById('labelModeloAtivo').innerText = `(${veiculoAtual.modelo || ''})`;
-                document.getElementById('inputGerenteDash').value = veiculoAtual.gerenteResponsavel || '';
-                document.getElementById('inputMotoristaDash').value = veiculoAtual.motoristaResponsavel || '';
-                document.getElementById('inputKmAtualDash').value = veiculoAtual.kmAtual || 0;
-                document.getElementById('inputKmMesDash').value = veiculoAtual.kmMes || 0;
-                document.getElementById('inputKmMetaDash').value = veiculoAtual.kmMeta || 0;
+                let elPlaca = document.getElementById('labelPlacaAtiva');
+                let elModelo = document.getElementById('labelModeloAtivo');
+                if(elPlaca) elPlaca.innerText = veiculoAtual.placa;
+                if(elModelo) elModelo.innerText = `(${veiculoAtual.modelo || ''})`;
+                
+                let elGerente = document.getElementById('inputGerenteDash');
+                let elMotorista = document.getElementById('inputMotoristaDash');
+                let elKmAtual = document.getElementById('inputKmAtualDash');
+                let elKmMes = document.getElementById('inputKmMesDash');
+                let elKmMeta = document.getElementById('inputKmMetaDash');
+
+                if(elGerente) elGerente.value = veiculoAtual.gerenteResponsavel || '';
+                if(elMotorista) elMotorista.value = veiculoAtual.motoristaResponsavel || '';
+                if(elKmAtual) elKmAtual.value = veiculoAtual.kmAtual || 0;
+                if(elKmMes) elKmMes.value = veiculoAtual.kmMes || 0;
+                if(elKmMeta) elKmMeta.value = veiculoAtual.kmMeta || 0;
             }
         }
 
@@ -1298,12 +1452,12 @@
 
         function renderizarDocumentosOciosidade(dados) {
             let tbody = document.getElementById('tabelaDocumentosOciosidade');
+            if(!tbody) return;
             tbody.innerHTML = '';
             let dataAtual = new Date();
 
             dados.forEach(item => {
                 let kmMesVal = Number(item.kmMes) || 0;
-                
                 let statusTrocaOleoHtml = "";
                 
                 if (item.dataUltimaTrocaOleo) {
@@ -1357,6 +1511,7 @@
 
         function renderizarManutencao(dados) {
             let tbody = document.getElementById('tabelaManutencao');
+            if(!tbody) return;
             tbody.innerHTML = '';
             dados.forEach(item => {
                 let statusAtual = item.status || 'Operação';
@@ -1453,8 +1608,10 @@
         }
 
         function renderizarRelatorioKm(dados) {
-            let mostrarBateu = document.getElementById('checkBateuMeta').checked;
-            let mostrarFora = document.getElementById('checkForaMeta').checked;
+            let elBateu = document.getElementById('checkBateuMeta');
+            let elFora = document.getElementById('checkForaMeta');
+            let mostrarBateu = elBateu ? elBateu.checked : true;
+            let mostrarFora = elFora ? elFora.checked : true;
 
             let dadosFiltradosMeta = dados.filter(item => {
                 let kmRodadoMes = Number(item.kmMes) || 0;
@@ -1468,6 +1625,7 @@
 
             let dadosOrdenados = [...dadosFiltradosMeta].sort((a, b) => (Number(b.kmMes) || 0) - (Number(a.kmMes) || 0));
             let tbody = document.getElementById('tabelaRelatorioKm');
+            if(!tbody) return;
             tbody.innerHTML = '';
 
             dadosOrdenados.forEach(item => {
@@ -1493,6 +1651,7 @@
 
         function renderizarBaseCompleta(dados) {
             let tbody = document.getElementById('tabelaBaseCompleta');
+            if(!tbody) return;
             tbody.innerHTML = '';
             dados.forEach((item) => {
                 let isSelected = item.placa === placaAtivaSelecionada;
@@ -1538,7 +1697,8 @@
         }
 
         function fazerBackupJSON() {
-            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(baseFrota, null, 2));
+            let payload = { dados: baseFrota, chaves: baseChaves };
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
             let dlAnchorElem = document.createElement('a');
             dlAnchorElem.setAttribute("href", dataStr);
             dlAnchorElem.setAttribute("download", "backup_frota_" + new Date().toISOString().slice(0,10) + ".json");
@@ -1551,15 +1711,20 @@
             let reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    let dadosRestaurados = JSON.parse(e.target.result);
-                    if(Array.isArray(dadosRestaurados) && dadosRestaurados.length > 0 && dadosRestaurados[0].placa) {
-                        baseFrota = dadosRestaurados;
-                        popularFiltrosSelects();
-                        renderizarTudo();
-                        alert(`Backup restaurado com sucesso! ${baseFrota.length} veículos carregados.`);
+                    let jsonRestaurado = JSON.parse(e.target.result);
+                    if(Array.isArray(jsonRestaurado)) {
+                        baseFrota = jsonRestaurado;
+                        baseChaves = [];
+                    } else if(jsonRestaurado && Array.isArray(jsonRestaurado.dados)) {
+                        baseFrota = jsonRestaurado.dados;
+                        baseChaves = jsonRestaurado.chaves || [];
                     } else {
                         alert("Arquivo JSON inválido ou formato incorreto.");
+                        return;
                     }
+                    popularFiltrosSelects();
+                    renderizarTudo();
+                    alert(`Backup restaurado com sucesso! ${baseFrota.length} veículos carregados.`);
                 } catch (err) {
                     alert("Erro ao ler o arquivo JSON.");
                 }
