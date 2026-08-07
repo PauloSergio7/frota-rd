@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manutenção RD - Frota</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f4f7fe;
+            --sidebar-bg: #111c44;
+            --header-bg: #ffffff;
+            --accent-color: #4318ff;
+            --accent-hover: #3311db;
+            --text-dark: #2b3674;
+            --text-muted: #a3aed1;
+            --text-light: #ffffff;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --success: #05cd99;
+            --danger: #ee5d50;
+            --warning: #ffce20;
+            --info: #3965ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR DE FILTROS */
+        aside {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            padding: 25px 20px;
+            overflow-y: auto;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        aside h2 {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .filter-group {
+            margin-bottom: 20px;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .filter-group select, .filter-group input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 8px;
+            outline: none;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select:focus {
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-group select option {
+            background-color: var(--sidebar-bg);
+            color: white;
+        }
+
+        /* CONTEÚDO PRINCIPAL */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HEADER SUPERIOR */
+        header {
+            background-color: var(--header-bg);
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            gap: 20px;
+            flex-wrap: wrap;
+            z-index: 50;
+        }
+
+        .logo-area {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dark);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 10px rgba(67, 24, 255, 0.2);
+        }
+
+        .nav-tab:hover:not(.active) {
+            background-color: var(--bg-main);
+        }
+
+        /* CORPO DO DASHBOARD */
+        .content-body {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .content-body.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* CARDS DE INDICADORES */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background-color: var(--accent-color);
+        }
+
+        .card h3 {
+            font-size: 0.9rem;
+            color: #8f9bba;
+            font-weight: 500;
+        }
+
+        .card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        /* PAINEL DE AÇÕES / FORMULÁRIOS */
+        .action-panel {
+            background: var(--card-bg);
+            padding: 20px 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .form-inline {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-inline label {
+            font-size: 0.8rem;
+            color: #8f9bba;
+            font-weight: 600;
+        }
+
+        .form-inline input, .form-inline select {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            outline: none;
+            background-color: var(--bg-main);
+        }
+
+        .form-inline input:focus {
+            border-color: var(--accent-color);
+            background-color: #fff;
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 4px 12px rgba(67, 24, 255, 0.2);
+        }
+
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #04b386; box-shadow: 0 4px 12px rgba(5, 205, 153, 0.2); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #d85246; box-shadow: 0 4px 12px rgba(238, 93, 80, 0.2); }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-dark); }
+        .btn-outline:hover { background-color: var(--bg-main); box-shadow: none; }
+
+        /* TABELAS */
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow-x: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 14px 20px;
+            text-align: left;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #fafbfc;
+            color: #8f9bba;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        tr { transition: background-color 0.2s; }
+        tr:hover { background-color: #f8f9fc; }
+
+        .row-selected {
+            background-color: #eff4ff !important;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-success { background-color: rgba(5, 205, 153, 0.1); color: var(--success); }
+        .badge-danger { background-color: rgba(238, 93, 80, 0.1); color: var(--danger); }
+        .badge-warning { background-color: rgba(255, 206, 32, 0.15); color: #d4a700; }
+
+        .status-operacao { background-color: rgba(5, 205, 153, 0.1); color: var(--success); border: 1px solid rgba(5, 205, 153, 0.2); }
+        .status-ociosa { background-color: rgba(255, 206, 32, 0.1); color: #d4a700; border: 1px solid rgba(255, 206, 32, 0.2); }
+        .status-manutencao { background-color: rgba(238, 93, 80, 0.1); color: var(--danger); border: 1px solid rgba(238, 93, 80, 0.2); }
+
+        select.select-status {
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            font-size: 0.8rem;
+        }
+
+        /* GRID DA FICHA DO VEÍCULO */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .spec-item label {
+            font-size: 0.8rem;
+            color: #8f9bba;
+            font-weight: 600;
+        }
+
+        .spec-item input, .spec-item textarea, .spec-item select {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--bg-main);
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .spec-item input:focus, .spec-item textarea:focus {
+            border-color: var(--accent-color);
+            background: #fff;
+        }
+
+        /* INPUTS NAS TABELAS (BASE DE DADOS) */
+        .table-input {
+            padding: 8px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: transparent;
+            width: 100%;
+            transition: 0.2s;
+        }
+        .table-input:hover { border-color: var(--border-color); background: #fff; }
+        .table-input:focus { border-color: var(--accent-color); background: #fff; outline: none; }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(17, 28, 68, 0.6);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 550px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease;
+        }
+        .modal-content h3 { margin-bottom: 20px; color: var(--text-dark); }
+        .modal-form-group {
+            margin-bottom: 15px;
+        }
+        .modal-form-group label { display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 600; color: #8f9bba;}
+        .modal-form-group input, .modal-form-group select, .modal-form-group textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
+            outline: none; transition: 0.2s;
+        }
+        .modal-form-group input:focus { border-color: var(--accent-color); }
+        .modal-actions {
+            display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR DE FILTROS -->
+    <aside>
+        <h2>⚙️ Filtros</h2>
+        
+        <div class="filter-group">
+            <label>Filtrar por Placa</label>
+            <select id="filtroPlaca" onchange="aplicarFiltros()">
+                <option value="">Todas as Placas</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Empresa</label>
+            <select id="filtroEmpresa" onchange="aplicarFiltros()">
+                <option value="">Todas</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Tipo de Veículo</label>
+            <select id="filtroTipo" onchange="aplicarFiltros()">
+                <option value="">Todos</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Regional / Lotação</label>
+            <select id="filtroRegional" onchange="aplicarFiltros()">
+                <option value="">Todas</option>
+            </select>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div class="main-container">
+        <!-- HEADER -->
+        <header>
+            <div class="logo-area">
+                🚚 Frota - Manutenção RD
+                <span id="statusSync" style="font-size: 0.7rem; font-weight: 500; color: var(--text-muted); margin-left: 8px;">🔄 Carregando...</span>
+            </div>
+            <div class="nav-tabs">
+                <button class="nav-tab active" id="btn-tab-painel" onclick="mudarAba(event, 'aba-painel')">Painel Geral</button>
+                <button class="nav-tab" id="btn-tab-veiculo" onclick="mudarAba(event, 'aba-veiculo')">📋 Ficha do Veículo</button>
+                <button class="nav-tab" id="btn-tab-documentos" onclick="mudarAba(event, 'aba-documentos')">Alertas</button>
+                <button class="nav-tab" id="btn-tab-manutencao" onclick="mudarAba(event, 'aba-manutencao')">🔧 Manutenção</button>
+                <button class="nav-tab" id="btn-tab-relatorio" onclick="mudarAba(event, 'aba-relatorio')">Relatório KM</button>
+                <button class="nav-tab" id="btn-tab-base" style="background-color: var(--text-dark); color: white;" onclick="mudarAba(event, 'aba-base')">📁 Base de Dados / Backup</button>
+            </div>
+        </header>
+
+        <!-- ABA 1: PAINEL GERAL -->
+        <div id="aba-painel" class="content-body active">
+            
+            <div class="cards-grid">
+                <div class="card">
+                    <h3>Total de Veículos</h3>
+                    <div class="value" id="cardTotalVeiculos">0</div>
+                </div>
+                <div class="card">
+                    <h3>Veículos em Operação</h3>
+                    <div class="value" id="cardAtivos" style="color: var(--success);">0</div>
+                </div>
+                <div class="card">
+                    <h3>Veículos com Alertas</h3>
+                    <div class="value" id="cardPendentes" style="color: var(--danger);">0</div>
+                </div>
+            </div>
+
+            <div class="action-panel">
+                <div class="form-row" style="align-items: flex-end;">
+                    <div style="margin-right: auto;">
+                        <h4 style="font-size: 0.9rem; color: #8f9bba; margin-bottom: 5px;">Veículo Selecionado:</h4>
+                        <span id="labelPlacaAtiva" style="color: var(--accent-color); font-weight: 800; font-size: 1.4rem;">-</span>
+                        <span id="labelModeloAtivo" style="color: var(--text-muted); font-size: 0.9rem; margin-left: 5px;">(Selecione na tabela)</span>
+                    </div>
+                    <div class="form-inline">
+                        <label>Gerente Resp.</label>
+                        <input type="text" id="inputGerenteDash" placeholder="Nome do gerente" style="width: 180px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>Motorista Resp.</label>
+                        <input type="text" id="inputMotoristaDash" placeholder="Nome do motorista" style="width: 180px;">
+                    </div>
+                    <button class="btn" onclick="salvarResponsaveisDash()">💾 Salvar</button>
+                </div>
+                
+                <div class="form-row" style="border-top: 1px solid var(--border-color); padding-top: 15px; align-items: flex-end;">
+                    <div class="form-inline">
+                        <label>KM Atual</label>
+                        <input type="number" id="inputKmAtualDash" style="width: 120px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>KM Rodado Mês</label>
+                        <input type="number" id="inputKmMesDash" style="width: 120px;">
+                    </div>
+                    <div class="form-inline">
+                        <label>Meta KM Mês</label>
+                        <input type="number" id="inputKmMetaDash" style="width: 120px;">
+                    </div>
+                    <button class="btn btn-success" onclick="salvarKmDiretoDash()">Atualizar KM</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="font-size: 1.1rem;">Frota Ativa</h3>
+                <button class="btn btn-success" onclick="abrirModalCadastro()">+ Adicionar Veículo</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Motorista</th>
+                            <th>Empresa</th>
+                            <th>Tipo</th>
+                            <th>Modelo</th>
+                            <th>Gerente</th>
+                            <th>Lotação</th>
+                            <th>Status CRLV</th>
+                            <th>KM Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaPainelPrincipal">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 2: FICHA DO VEÍCULO -->
+        <div id="aba-veiculo" class="content-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h3 style="margin: 0;">📋 Ficha Técnica:</h3>
+                    <select id="selectPlacaFicha" onchange="mudarPlacaFichaTab(this.value)" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); font-weight: 600; background: white; color: var(--text-dark);">
+                        <!-- Dinâmico -->
+                    </select>
+                </div>
+                <button class="btn btn-success" onclick="salvarFichaVeiculo()">💾 Salvar Ficha</button>
+            </div>
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <label>Placa</label>
+                    <input type="text" id="fichaPlaca" readonly style="background: #e2e8f0; font-weight: bold; cursor: not-allowed;">
+                </div>
+                <div class="spec-item">
+                    <label>Chassi</label>
+                    <input type="text" id="fichaChassi" placeholder="Número do Chassi...">
+                </div>
+                <div class="spec-item">
+                    <label>Renavam</label>
+                    <input type="text" id="fichaRenavam" placeholder="Número do Renavam...">
+                </div>
+                <div class="spec-item">
+                    <label>Marca</label>
+                    <input type="text" id="fichaMarca" placeholder="Ex: Toyota, Fiat...">
+                </div>
+                <div class="spec-item">
+                    <label>Modelo</label>
+                    <input type="text" id="fichaModelo" placeholder="Ex: Hilux CD 4x4">
+                </div>
+                <div class="spec-item">
+                    <label>Ano de Fabricação</label>
+                    <input type="text" id="fichaAno" placeholder="Ex: 2024/2025">
+                </div>
+                <div class="spec-item">
+                    <label>Cor</label>
+                    <input type="text" id="fichaCor" placeholder="Ex: Branco, Prata...">
+                </div>
+                <div class="spec-item">
+                    <label>Combustível</label>
+                    <select id="fichaCombustivel">
+                        <option value="Diesel">Diesel</option>
+                        <option value="Gasolina">Gasolina</option>
+                        <option value="Flex">Flex</option>
+                        <option value="Elétrico">Elétrico</option>
+                        <option value="N/D">ND</option>
+                    </select>
+                </div>
+                <div class="spec-item">
+                    <label>Data da Última Troca de Óleo</label>
+                    <input type="date" id="fichaDataUltimaTrocaOleo" onchange="salvarDataTrocaOleoFicha(this.value)">
+                </div>
+                <div class="spec-item">
+                    <label>Validade CRLV</label>
+                    <input type="date" id="fichaValidadeCrlv" placeholder="Data de vencimento do CRLV" onchange="salvarValidadeCrlvFicha(this.value)">
+                </div>
+                <div class="spec-item" style="grid-column: 1 / -1;">
+                    <label>Acessórios / Equipamentos</label>
+                    <textarea id="fichaAcessorios" rows="3" placeholder="Ex: Ar condicionado, rastreador, guincho..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 3: DOCUMENTAÇÃO & OCIOSIDADE -->
+        <div id="aba-documentos" class="content-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>⚠️ Alertas de Troca de Óleo, Ociosidade e CRLV</h3>
+                <button class="btn btn-outline" onclick="abrirModalKm()">Atualizar KM (Modal)</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Motorista</th>
+                            <th>Modelo</th>
+                            <th>Data Última Troca de Óleo</th>
+                            <th>Alerta Troca de Óleo (6 Meses)</th>
+                            <th>Validade CRLV</th>
+                            <th>Status CRLV</th>
+                            <th>KM Mês</th>
+                            <th>Alerta Ociosidade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaDocumentosOciosidade">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 4: MANUTENÇÃO -->
+        <div id="aba-manutencao" class="content-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>🔧 Status e Manutenção de Veículos</h3>
+                <button class="btn btn-success" onclick="salvarTodasManutencoes()">💾 Salvar Alterações de Manutenção</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Detalhes</th>
+                            <th>Placa</th>
+                            <th>Motorista</th>
+                            <th>Modelo</th>
+                            <th>Status Atual</th>
+                            <th>Oficina Responsável</th>
+                            <th>Local / Lotação</th>
+                            <th>Observação de Manutenção</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaManutencao">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 5: RELATÓRIO KM -->
+        <div id="aba-relatorio" class="content-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h3>📊 Relatório de KM</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Classificado automaticamente do maior para o menor KM rodado.</p>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center; background: var(--card-bg); padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <strong style="font-size: 0.85rem; color: var(--text-dark);">Filtros de Meta:</strong>
+                    <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="checkBateuMeta" checked onchange="aplicarFiltros()"> Meta Atingida
+                    </label>
+                    <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="checkForaMeta" checked onchange="aplicarFiltros()"> Fora da Meta
+                    </label>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Gerente</th>
+                            <th>Motorista</th>
+                            <th>Placa</th>
+                            <th>Modelo</th>
+                            <th>KM Rodado (Mês)</th>
+                            <th>Meta (Mês)</th>
+                            <th>Restante</th>
+                            <th>Status da Meta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaRelatorioKm">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 6: BASE DE DADOS E BACKUP -->
+        <div id="aba-base" class="content-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h3>📁 Base de Dados Central</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">As edições feitas aqui são salvas automaticamente na nuvem e sincronizadas entre dispositivos.</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="sincronizarComRemoto()">🔄 Sincronizar Agora</button>
+                    <button class="btn" style="background-color: var(--info);" onclick="fazerBackupJSON()">📥 Baixar Backup (JSON)</button>
+                    <label class="btn btn-outline" style="cursor: pointer; background: white;">
+                        📤 Restaurar Backup (JSON)
+                        <input type="file" accept=".json" style="display: none;" onchange="restaurarBackupJSON(event)">
+                    </label>
+                    <div style="width: 1px; height: 30px; background: var(--border-color); margin: 0 5px;"></div>
+                    <button class="btn btn-outline" onclick="exportarBaseExcel()">📥 Exportar Excel</button>
+                    <label class="btn btn-success" style="cursor: pointer;">
+                        📤 Importar Excel
+                        <input type="file" id="inputUploadArquivo" accept=".xlsx, .xls, .csv" style="display: none;" onchange="importarArquivoBase(event)">
+                    </label>
+                </div>
+            </div>
+            
+            <div class="table-container" style="max-height: 60vh;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Excluir</th>
+                            <th>Placa</th>
+                            <th>Motorista Responsável</th>
+                            <th>Empresa</th>
+                            <th>Tipo</th>
+                            <th>Modelo</th>
+                            <th>Gerente Responsável</th>
+                            <th>Lotação</th>
+                            <th>Data Última Troca de Óleo</th>
+                            <th>Validade CRLV</th>
+                            <th>KM Atual</th>
+                            <th>KM Mês</th>
+                            <th>Meta Mês</th>
+                            <th>KM Semana</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaBaseCompleta">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE DETALHES DE MANUTENÇÃO -->
+    <div id="modalManutencaoDetalhes" class="modal">
+        <div class="modal-content">
+            <h3>🔧 Detalhes da Manutenção: <span id="modalManutencaoPlacaTitulo" style="color: var(--accent-color);"></span></h3>
+            <div class="modal-form-group">
+                <label>Data de Início da Manutenção:</label>
+                <input type="date" id="modalDataInicio">
+            </div>
+            <div class="modal-form-group">
+                <label>Data do Fim da Manutenção:</label>
+                <input type="date" id="modalDataFim">
+            </div>
+            <div class="modal-form-group">
+                <label>Oficina Responsável:</label>
+                <input type="text" id="modalOficina" placeholder="Nome da oficina...">
+            </div>
+            <div class="modal-form-group">
+                <label>Observação Detalhada:</label>
+                <textarea id="modalObsDetalhada" rows="3" placeholder="Peças trocadas, serviços realizados, etc."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="fecharModalManutencaoDetalhes()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarModalManutencaoDetalhes()">Salvar Informações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CADASTRO / EDIÇÃO -->
+    <div id="modalCadastro" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitulo">Adicionar Novo Veículo</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="modal-form-group">
+                    <label>Placa:</label>
+                    <input type="text" id="cadPlaca" placeholder="Ex: ABC1D23">
+                </div>
+                <div class="modal-form-group">
+                    <label>Status Inicial:</label>
+                    <select id="cadStatusManutencao">
+                        <option value="Operação">Operação</option>
+                        <option value="Ociosa">Ociosa</option>
+                        <option value="Manutenção">Manutenção</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label>Motorista Responsável:</label>
+                    <input type="text" id="cadMotorista" placeholder="Nome do motorista">
+                </div>
+                <div class="modal-form-group">
+                    <label>Gerente Responsável:</label>
+                    <input type="text" id="cadGerente" placeholder="Nome do gerente">
+                </div>
+                <div class="modal-form-group">
+                    <label>Empresa:</label>
+                    <input type="text" id="cadEmpresa" placeholder="Ex: Eqtl Go">
+                </div>
+                <div class="modal-form-group">
+                    <label>Lotação / Regional:</label>
+                    <input type="text" id="cadLotacao" placeholder="Ex: Morrinhos">
+                </div>
+                <div class="modal-form-group">
+                    <label>Tipo de Veículo:</label>
+                    <input type="text" id="cadTipo" placeholder="Ex: Pickup Media">
+                </div>
+                <div class="modal-form-group">
+                    <label>Modelo:</label>
+                    <input type="text" id="cadModelo" placeholder="Ex: Hilux CD 4x4">
+                </div>
+                <div class="modal-form-group">
+                    <label>Data Última Troca de Óleo:</label>
+                    <input type="date" id="cadDataTrocaOleo">
+                </div>
+                <div class="modal-form-group">
+                    <label>Validade CRLV:</label>
+                    <input type="date" id="cadValidadeCrlv">
+                </div>
+                <div class="modal-form-group">
+                    <label>KM Atual:</label>
+                    <input type="number" id="cadKmAtual" placeholder="0">
+                </div>
+                <div class="modal-form-group">
+                    <label>Meta KM do Mês:</label>
+                    <input type="number" id="cadKmMeta" placeholder="2500">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="fecharModalCadastro()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarNovoRegistro()">Salvar Veículo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ATUALIZAÇÃO DE KM -->
+    <div id="modalKm" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <h3>📈 Atualizar Quilometragem</h3>
+            <div class="modal-form-group">
+                <label>Selecione a Placa:</label>
+                <select id="selectPlacaKm"></select>
+            </div>
+            <div class="modal-form-group">
+                <label>Novo KM Rodado no Mês:</label>
+                <input type="number" id="inputNovoKmMes" placeholder="Ex: 2800">
+            </div>
+            <div class="modal-form-group">
+                <label>KM Rodado na Semana:</label>
+                <input type="number" id="inputNovoKmSemana" placeholder="Ex: 200">
+            </div>
+            <div class="modal-form-group">
+                <label>Nova Meta de KM do Mês:</label>
+                <input type="number" id="inputNovaMeta" placeholder="Ex: 3500">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="fecharModalKm()">Cancelar</button>
+                <button class="btn btn-success" onclick="atualizarKmVeiculoModal()">Atualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let basePadrao = [
+            { placa: "RBO1A52", motoristaResponsavel: "Marcos Vinicius", empresa: "Eqtl Go", tipo: "Carga Reboque", modelo: "R/EMPRETEC CBE 4.5T", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2025-10-10", validadeCrlv: "2026-10-10", kmAtual: 8400, kmMes: 1200, kmMeta: 2000, kmSemana: 0, obs: "Licenciamento OK", status: "Manutenção", dataInicioManutencao: "", dataFimManutencao: "", oficina: "Oficina Central", chassi: "9BWZZZ375VP001234", renavam: "00112233445", marca: "Empretec", cor: "Prata", combustivel: "Diesel", ano: "2023/2023", acessorios: "Cinta de amarração, estepe" },
+            { placa: "SCH4C78", motoristaResponsavel: "Paulo Roberto", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2026-04-15", validadeCrlv: "2025-05-10", kmAtual: 34200, kmMes: 3100, kmMeta: 3000, kmSemana: 450, obs: "Nenhuma", status: "Operação", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7123456", renavam: "00987654321", marca: "Toyota", cor: "Branco", combustivel: "Diesel", ano: "2022/2023", acessorios: "Capota marítima, protetor de caçamba, engate" },
+            { placa: "SCH5E98", motoristaResponsavel: "Lucas Souza", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Catalão", regional: "Sul", dataUltimaTrocaOleo: "2025-01-20", validadeCrlv: "2026-12-30", kmAtual: 12500, kmMes: 0, kmMeta: 2500, kmSemana: 0, obs: "Veículo Ocioso", status: "Ociosa", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7654321", renavam: "00554433221", marca: "Toyota", cor: "Preto", combustivel: "Diesel", ano: "2023/2024", acessorios: "Protetor de caçamba, estribo lateral" }
+        ];
+
+        // =====================================================================
+        // CONFIGURAÇÃO DO BANCO DE DADOS (Supabase)
+        // Preencha com os dados do SEU projeto gratuito em https://supabase.com
+        // Veja o passo a passo enviado junto com este arquivo.
+        // =====================================================================
+        const SUPABASE_URL = "https://pmnuxjufhmwoniasxvle.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbnV4anVmaG13b25pYXN4dmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwODI1MzYsImV4cCI6MjEwMTY1ODUzNn0.QDyX6FGTb1pdepzTsUI8SpSjvKy8nI877zgb1tCu-zk";
+        // =====================================================================
+
+        const supabaseClient = (SUPABASE_URL.startsWith('http'))
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
+
+        let baseFrota = [];
+        let placaAtivaSelecionada = "";
+        let placaFichaSelecionada = "";
+        let placaEditandoManutencao = null;
+        let salvandoTimeout = null;
+        let pausarSincronizacao = false;
+        let ultimoJsonSalvo = "";
+
+        function definirStatusSync(texto, cor) {
+            let el = document.getElementById('statusSync');
+            if (el) {
+                el.innerText = texto;
+                el.style.color = cor || 'var(--text-muted)';
+            }
+        }
+
+        // Salva no banco de dados (com pequeno atraso para agrupar edições rápidas)
+        function salvarLocalStorage() {
+            if (!supabaseClient) {
+                definirStatusSync('⚠️ Banco de dados não configurado', 'var(--danger)');
+                return;
+            }
+            definirStatusSync('💾 Salvando...', 'var(--warning)');
+            clearTimeout(salvandoTimeout);
+            salvandoTimeout = setTimeout(async () => {
+                try {
+                    let json = JSON.stringify(baseFrota);
+                    let { error } = await supabaseClient
+                        .from('frota_dados')
+                        .update({ dados: baseFrota, atualizado_em: new Date().toISOString() })
+                        .eq('id', 1);
+                    if (error) throw error;
+                    ultimoJsonSalvo = json;
+                    definirStatusSync('✅ Salvo na nuvem', 'var(--success)');
+                } catch (err) {
+                    console.error('Erro ao salvar no banco de dados:', err);
+                    definirStatusSync('⚠️ Erro ao salvar (veja o console)', 'var(--danger)');
+                }
+            }, 500);
+        }
+
+        // Busca a base de dados mais recente (usada na carga inicial e na sincronização periódica)
+        async function buscarBaseRemota() {
+            if (!supabaseClient) return null;
+            try {
+                let { data, error } = await supabaseClient
+                    .from('frota_dados')
+                    .select('dados')
+                    .eq('id', 1)
+                    .single();
+                if (error) throw error;
+                return (data && data.dados) ? data.dados : null;
+            } catch (err) {
+                console.error('Erro ao buscar dados:', err);
+                return null;
+            }
+        }
+
+        async function inicializarApp() {
+            if (!supabaseClient) {
+                definirStatusSync('⚠️ Configure o Supabase no código', 'var(--danger)');
+                alert('O banco de dados ainda não foi configurado. Abra o arquivo HTML, procure por SUPABASE_URL e SUPABASE_ANON_KEY no início do <script> e cole os dados do seu projeto Supabase (veja o passo a passo enviado).');
+                baseFrota = JSON.parse(JSON.stringify(basePadrao));
+                placaAtivaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
+                placaFichaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
+                popularFiltrosSelects();
+                renderizarTudo();
+                return;
+            }
+
+            definirStatusSync('🔄 Carregando dados...', 'var(--text-muted)');
+            let dados = await buscarBaseRemota();
+
+            if (dados && Array.isArray(dados) && dados.length > 0) {
+                baseFrota = dados;
+            } else {
+                baseFrota = JSON.parse(JSON.stringify(basePadrao));
+                try {
+                    await supabaseClient.from('frota_dados').upsert({ id: 1, dados: baseFrota, atualizado_em: new Date().toISOString() });
+                } catch (err) {
+                    console.error('Erro ao criar base inicial:', err);
+                }
+            }
+            ultimoJsonSalvo = JSON.stringify(baseFrota);
+
+            placaAtivaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
+            placaFichaSelecionada = baseFrota[0] ? baseFrota[0].placa : "";
+
+            popularFiltrosSelects();
+            renderizarTudo();
+            definirStatusSync('✅ Sincronizado', 'var(--success)');
+
+            // Verifica periodicamente se outra pessoa/dispositivo alterou os dados
+            setInterval(sincronizarComRemoto, 8000);
+        }
+
+        // Atualiza a tela automaticamente se os dados mudarem em outro dispositivo/aba
+        async function sincronizarComRemoto() {
+            if (pausarSincronizacao || !supabaseClient) return;
+            let campoAtivo = document.activeElement;
+            let editandoAgora = campoAtivo && ['INPUT', 'SELECT', 'TEXTAREA'].includes(campoAtivo.tagName);
+            let modalAberto = document.querySelector('.modal[style*="flex"]');
+            if (editandoAgora || modalAberto) return;
+
+            let dados = await buscarBaseRemota();
+            if (!dados) return;
+            let jsonRemoto = JSON.stringify(dados);
+            if (jsonRemoto !== ultimoJsonSalvo) {
+                baseFrota = dados;
+                ultimoJsonSalvo = jsonRemoto;
+                popularFiltrosSelects();
+                renderizarTudo();
+                definirStatusSync('🔄 Atualizado (outro dispositivo)', 'var(--info)');
+            }
+        }
+
+        window.onload = function() {
+            inicializarApp();
+        };
+
+        function popularFiltrosSelects() {
+            let placas = [...new Set(baseFrota.map(i => i.placa).filter(Boolean))];
+            let empresas = [...new Set(baseFrota.map(i => i.empresa).filter(Boolean))];
+            let tipos = [...new Set(baseFrota.map(i => i.tipo).filter(Boolean))];
+            let regionais = [...new Set(baseFrota.map(i => i.lotacao).filter(Boolean))];
+
+            preencherSelect('filtroPlaca', placas);
+            preencherSelect('filtroEmpresa', empresas);
+            preencherSelect('filtroTipo', tipos);
+            preencherSelect('filtroRegional', regionais);
+            preencherSelect('selectPlacaKm', placas);
+            preencherSelect('selectPlacaFicha', placas);
+
+            if(placas.length > 0) {
+                if(!placas.includes(placaFichaSelecionada)) placaFichaSelecionada = placas[0];
+                document.getElementById('selectPlacaFicha').value = placaFichaSelecionada;
+            }
+        }
+
+        function preencherSelect(elementId, valores) {
+            let sel = document.getElementById(elementId);
+            if(!sel) return;
+            let primeiraOpt = sel.options[0];
+            sel.innerHTML = '';
+            if(primeiraOpt) sel.appendChild(primeiraOpt);
+            valores.forEach(val => {
+                let opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = val;
+                sel.appendChild(opt);
+            });
+        }
+
+        function aplicarFiltros() {
+            let placaFiltroGlobal = document.getElementById('filtroPlaca').value;
+            let empresaFiltro = document.getElementById('filtroEmpresa').value;
+            let tipoFiltro = document.getElementById('filtroTipo').value;
+            let regionalFiltro = document.getElementById('filtroRegional').value;
+
+            let dadosFiltrados = baseFrota.filter(item => {
+                let matchPlacaGlobal = !placaFiltroGlobal || item.placa === placaFiltroGlobal;
+                let matchEmpresa = !empresaFiltro || item.empresa === empresaFiltro;
+                let matchTipo = !tipoFiltro || item.tipo === tipoFiltro;
+                let matchRegional = !regionalFiltro || item.lotacao === regionalFiltro;
+                return matchPlacaGlobal && matchEmpresa && matchTipo && matchRegional;
+            });
+
+            renderizarPainel(dadosFiltrados);
+            renderizarDocumentosOciosidade(dadosFiltrados);
+            renderizarManutencao(dadosFiltrados);
+            renderizarRelatorioKm(dadosFiltrados);
+            renderizarBaseCompleta(dadosFiltrados);
+            
+            renderizarCards(dadosFiltrados);
+            salvarLocalStorage();
+        }
+
+        function renderizarTudo() {
+            aplicarFiltros();
+            carregarFichaVeiculoAtivo();
+        }
+
+        function selecionarVeiculo(placa) {
+            placaAtivaSelecionada = placa;
+            renderizarPainel(baseFrota.filter(item => {
+                let placaFiltroGlobal = document.getElementById('filtroPlaca').value;
+                let empresaFiltro = document.getElementById('filtroEmpresa').value;
+                let tipoFiltro = document.getElementById('filtroTipo').value;
+                let regionalFiltro = document.getElementById('filtroRegional').value;
+                return (!placaFiltroGlobal || item.placa === placaFiltroGlobal) &&
+                       (!empresaFiltro || item.empresa === empresaFiltro) &&
+                       (!tipoFiltro || item.tipo === tipoFiltro) &&
+                       (!regionalFiltro || item.lotacao === regionalFiltro);
+            }));
+        }
+
+        function mudarPlacaFichaTab(novaPlaca) {
+            placaFichaSelecionada = novaPlaca;
+            carregarFichaVeiculoAtivo();
+        }
+
+        function calcularStatusCrlv(validadeStr) {
+            if (!validadeStr) return "Vencido";
+            let hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            let validade = new Date(validadeStr + 'T00:00:00');
+            return validade >= hoje ? "Em Dia" : "Vencido";
+        }
+
+        function renderizarCards(dadosAtuais) {
+            let fonteDados = dadosAtuais || baseFrota;
+            document.getElementById('cardTotalVeiculos').innerText = fonteDados.length;
+            
+            let dataAtual = new Date();
+            let emOperacaoCount = 0;
+            let veiculosComAlertaCount = 0;
+
+            fonteDados.forEach(item => {
+                if(item.status === 'Operação') emOperacaoCount++;
+                
+                let temAlerta = false;
+
+                // 1. Alerta de Troca de Óleo (> 180 dias ou sem data)
+                if (item.dataUltimaTrocaOleo) {
+                    let diffDias = (dataAtual - new Date(item.dataUltimaTrocaOleo)) / (1000 * 60 * 60 * 24);
+                    if (diffDias > 180) temAlerta = true;
+                } else {
+                    temAlerta = true;
+                }
+
+                // 2. Alerta de CRLV Vencido
+                if (calcularStatusCrlv(item.validadeCrlv) === "Vencido") {
+                    temAlerta = true;
+                }
+
+                // [ATUALIZAÇÃO SOLICITADA]: O alarme de Alerta Ociosidade foi removido da contagem do card de veículos com alertas.
+
+                if (temAlerta) {
+                    veiculosComAlertaCount++;
+                }
+            });
+
+            document.getElementById('cardAtivos').innerText = emOperacaoCount;
+            document.getElementById('cardPendentes').innerText = veiculosComAlertaCount;
+        }
+
+        function renderizarPainel(dados) {
+            let tbody = document.getElementById('tabelaPainelPrincipal');
+            tbody.innerHTML = '';
+
+            dados.forEach(item => {
+                let isSelected = item.placa === placaAtivaSelecionada;
+                let tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                if(isSelected) tr.classList.add('row-selected');
+                
+                let statusCrlv = calcularStatusCrlv(item.validadeCrlv);
+                let statusBadgeClass = statusCrlv === 'Em Dia' ? "badge-success" : "badge-danger";
+
+                tr.onclick = () => selecionarVeiculo(item.placa);
+                tr.innerHTML = `
+                    <td><b>${item.placa}</b></td>
+                    <td>${item.motoristaResponsavel || '-'}</td>
+                    <td>${item.empresa || '-'}</td>
+                    <td>${item.tipo || '-'}</td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>${item.gerenteResponsavel || '-'}</td>
+                    <td>${item.lotacao || '-'}</td>
+                    <td><span class="badge ${statusBadgeClass}">${statusCrlv}</span></td>
+                    <td>${(Number(item.kmAtual) || 0).toLocaleString()} km</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            let veiculoAtual = baseFrota.find(i => i.placa === placaAtivaSelecionada) || baseFrota[0];
+            if(veiculoAtual) {
+                if(!placaAtivaSelecionada) placaAtivaSelecionada = veiculoAtual.placa;
+                document.getElementById('labelPlacaAtiva').innerText = veiculoAtual.placa;
+                document.getElementById('labelModeloAtivo').innerText = `(${veiculoAtual.modelo || ''})`;
+                document.getElementById('inputGerenteDash').value = veiculoAtual.gerenteResponsavel || '';
+                document.getElementById('inputMotoristaDash').value = veiculoAtual.motoristaResponsavel || '';
+                document.getElementById('inputKmAtualDash').value = veiculoAtual.kmAtual || 0;
+                document.getElementById('inputKmMesDash').value = veiculoAtual.kmMes || 0;
+                document.getElementById('inputKmMetaDash').value = veiculoAtual.kmMeta || 0;
+            }
+        }
+
+        function salvarResponsaveisDash() {
+            let novoGerente = document.getElementById('inputGerenteDash').value;
+            let novoMotorista = document.getElementById('inputMotoristaDash').value;
+            let veiculo = baseFrota.find(i => i.placa === placaAtivaSelecionada);
+            if(veiculo) {
+                if(novoGerente.trim() !== '') veiculo.gerenteResponsavel = novoGerente;
+                veiculo.motoristaResponsavel = novoMotorista;
+                renderizarTudo();
+            }
+        }
+
+        function salvarKmDiretoDash() {
+            let veiculo = baseFrota.find(i => i.placa === placaAtivaSelecionada);
+            if(veiculo) {
+                veiculo.kmAtual = Number(document.getElementById('inputKmAtualDash').value) || 0;
+                veiculo.kmMes = Number(document.getElementById('inputKmMesDash').value) || 0;
+                veiculo.kmMeta = Number(document.getElementById('inputKmMetaDash').value) || 0;
+                renderizarTudo();
+            }
+        }
+
+        function carregarFichaVeiculoAtivo() {
+            let veiculo = baseFrota.find(i => i.placa === placaFichaSelecionada) || baseFrota[0];
+            if(veiculo) {
+                placaFichaSelecionada = veiculo.placa;
+                let selectFicha = document.getElementById('selectPlacaFicha');
+                if(selectFicha) selectFicha.value = placaFichaSelecionada;
+
+                document.getElementById('fichaPlaca').value = veiculo.placa;
+                document.getElementById('fichaChassi').value = veiculo.chassi || '';
+                document.getElementById('fichaRenavam').value = veiculo.renavam || '';
+                document.getElementById('fichaMarca').value = veiculo.marca || '';
+                document.getElementById('fichaModelo').value = veiculo.modelo || '';
+                document.getElementById('fichaAno').value = veiculo.ano || '';
+                document.getElementById('fichaCor').value = veiculo.cor || '';
+                document.getElementById('fichaCombustivel').value = veiculo.combustivel || 'Diesel';
+                document.getElementById('fichaDataUltimaTrocaOleo').value = veiculo.dataUltimaTrocaOleo || '';
+                document.getElementById('fichaValidadeCrlv').value = veiculo.validadeCrlv || '';
+                document.getElementById('fichaAcessorios').value = veiculo.acessorios || '';
+            }
+        }
+
+        function salvarDataTrocaOleoFicha(novaData) {
+            let veiculo = baseFrota.find(i => i.placa === placaFichaSelecionada);
+            if(veiculo) {
+                veiculo.dataUltimaTrocaOleo = novaData;
+                salvarLocalStorage();
+                renderizarTudo();
+            }
+        }
+
+        function salvarValidadeCrlvFicha(novaValidade) {
+            let veiculo = baseFrota.find(i => i.placa === placaFichaSelecionada);
+            if(veiculo) {
+                veiculo.validadeCrlv = novaValidade;
+                salvarLocalStorage();
+                renderizarTudo();
+            }
+        }
+
+        function salvarFichaVeiculo() {
+            let veiculo = baseFrota.find(i => i.placa === placaFichaSelecionada);
+            if(veiculo) {
+                veiculo.chassi = document.getElementById('fichaChassi').value;
+                veiculo.renavam = document.getElementById('fichaRenavam').value;
+                veiculo.marca = document.getElementById('fichaMarca').value;
+                veiculo.modelo = document.getElementById('fichaModelo').value;
+                veiculo.ano = document.getElementById('fichaAno').value;
+                veiculo.cor = document.getElementById('fichaCor').value;
+                veiculo.combustivel = document.getElementById('fichaCombustivel').value;
+                veiculo.dataUltimaTrocaOleo = document.getElementById('fichaDataUltimaTrocaOleo').value;
+                veiculo.validadeCrlv = document.getElementById('fichaValidadeCrlv').value;
+                veiculo.acessorios = document.getElementById('fichaAcessorios').value;
+                salvarLocalStorage();
+                renderizarTudo();
+                alert(`Ficha do veículo ${veiculo.placa} salva com sucesso!`);
+            }
+        }
+
+        function renderizarDocumentosOciosidade(dados) {
+            let tbody = document.getElementById('tabelaDocumentosOciosidade');
+            tbody.innerHTML = '';
+            let dataAtual = new Date();
+
+            dados.forEach(item => {
+                let kmMesVal = Number(item.kmMes) || 0;
+                
+                let statusTrocaOleoHtml = "";
+                
+                if (item.dataUltimaTrocaOleo) {
+                    let dataTroca = new Date(item.dataUltimaTrocaOleo);
+                    let diffDias = (dataAtual - dataTroca) / (1000 * 60 * 60 * 24);
+                    let dataFormatada = dataTroca.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+                    if (diffDias <= 180) {
+                        statusTrocaOleoHtml = `<span class="badge badge-success">Em dia (${dataFormatada})</span>`;
+                    } else {
+                        statusTrocaOleoHtml = `<span class="badge badge-danger">Óleo Vencido (> 6 meses - ${dataFormatada})</span>`;
+                    }
+                } else {
+                    statusTrocaOleoHtml = `<span class="badge badge-danger">Óleo Vencido (Sem Data)</span>`;
+                }
+
+                let statusCrlvVal = calcularStatusCrlv(item.validadeCrlv);
+                let crlvBadgeClass = statusCrlvVal === 'Em Dia' ? "badge-success" : "badge-danger";
+                let valCrlvFormatada = item.validadeCrlv ? new Date(item.validadeCrlv + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada';
+                let statusCrlvHtml = `<span class="badge ${crlvBadgeClass}">${statusCrlvVal}</span>`;
+
+                let textoAlertaOciosidade = '';
+                let classeBadgeAlertaOciosidade = '';
+
+                if (kmMesVal === 0) {
+                    textoAlertaOciosidade = '⚠️ Veículo Ocioso (Sem KM)';
+                    classeBadgeAlertaOciosidade = 'badge-danger';
+                } else if (kmMesVal <= 500) {
+                    textoAlertaOciosidade = '⚠️ Média Baixa (<= 500 km)';
+                    classeBadgeAlertaOciosidade = 'badge-warning';
+                } else {
+                    textoAlertaOciosidade = '✅ Dentro da Média';
+                    classeBadgeAlertaOciosidade = 'badge-success';
+                }
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${item.placa}</b></td>
+                    <td>${item.motoristaResponsavel || '-'}</td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>${item.dataUltimaTrocaOleo ? new Date(item.dataUltimaTrocaOleo + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td>${statusTrocaOleoHtml}</td>
+                    <td>${valCrlvFormatada}</td>
+                    <td>${statusCrlvHtml}</td>
+                    <td>${kmMesVal.toLocaleString()} km</td>
+                    <td><span class="badge ${classeBadgeAlertaOciosidade}">${textoAlertaOciosidade}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderizarManutencao(dados) {
+            let tbody = document.getElementById('tabelaManutencao');
+            tbody.innerHTML = '';
+            dados.forEach(item => {
+                let statusAtual = item.status || 'Operação';
+                let classeBadge = 'status-operacao';
+                if(statusAtual === 'Ociosa') classeBadge = 'status-ociosa';
+                if(statusAtual === 'Manutenção') classeBadge = 'status-manutencao';
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.75rem;" onclick="abrirModalManutencaoDetalhes('${item.placa}')">📋 Detalhes</button>
+                    </td>
+                    <td><b>${item.placa}</b></td>
+                    <td>${item.motoristaResponsavel || '-'}</td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>
+                        <select id="status_man_${item.placa}" class="select-status ${classeBadge}" onchange="atualizarClasseCorSelect(this)">
+                            <option value="Operação" ${statusAtual === 'Operação' ? 'selected' : ''}>Operação</option>
+                            <option value="Ociosa" ${statusAtual === 'Ociosa' ? 'selected' : ''}>Ociosa</option>
+                            <option value="Manutenção" ${statusAtual === 'Manutenção' ? 'selected' : ''}>Manutenção</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="table-input" id="oficina_man_${item.placa}" value="${item.oficina || ''}" placeholder="Oficina...">
+                    </td>
+                    <td>${item.lotacao || '-'}</td>
+                    <td>
+                        <input type="text" class="table-input" id="obs_man_${item.placa}" value="${item.obs || ''}" placeholder="Detalhes...">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function atualizarClasseCorSelect(selectElem) {
+            selectElem.className = "select-status";
+            if(selectElem.value === 'Operação') selectElem.classList.add('status-operacao');
+            else if(selectElem.value === 'Ociosa') selectElem.classList.add('status-ociosa');
+            else if(selectElem.value === 'Manutenção') selectElem.classList.add('status-manutencao');
+        }
+
+        function abrirModalManutencaoDetalhes(placa) {
+            placaEditandoManutencao = placa;
+            let item = baseFrota.find(i => i.placa === placa);
+            if(item) {
+                document.getElementById('modalManutencaoPlacaTitulo').innerText = placa;
+                document.getElementById('modalDataInicio').value = item.dataInicioManutencao || '';
+                document.getElementById('modalDataFim').value = item.dataFimManutencao || '';
+                document.getElementById('modalOficina').value = item.oficina || '';
+                document.getElementById('modalObsDetalhada').value = item.obs || '';
+                document.getElementById('modalManutencaoDetalhes').style.display = 'flex';
+            }
+        }
+
+        function fecharModalManutencaoDetalhes() {
+            document.getElementById('modalManutencaoDetalhes').style.display = 'none';
+            placaEditandoManutencao = null;
+        }
+
+        function salvarModalManutencaoDetalhes() {
+            if(!placaEditandoManutencao) return;
+            let item = baseFrota.find(i => i.placa === placaEditandoManutencao);
+            if(item) {
+                item.dataInicioManutencao = document.getElementById('modalDataInicio').value;
+                item.dataFimManutencao = document.getElementById('modalDataFim').value;
+                item.oficina = document.getElementById('modalOficina').value;
+                item.obs = document.getElementById('modalObsDetalhada').value;
+                
+                let inputObs = document.getElementById(`obs_man_${placaEditandoManutencao}`);
+                if(inputObs) inputObs.value = item.obs;
+                let inputOficina = document.getElementById(`oficina_man_${placaEditandoManutencao}`);
+                if(inputOficina) inputOficina.value = item.oficina;
+
+                salvarLocalStorage();
+                alert(`Informações do veículo ${placaEditandoManutencao} salvas com sucesso!`);
+            }
+            fecharModalManutencaoDetalhes();
+        }
+
+        function salvarTodasManutencoes() {
+            baseFrota.forEach(item => {
+                let selectStatus = document.getElementById(`status_man_${item.placa}`);
+                let inputOficina = document.getElementById(`oficina_man_${item.placa}`);
+                let inputObs = document.getElementById(`obs_man_${item.placa}`);
+                if(selectStatus && inputOficina && inputObs) {
+                    item.status = selectStatus.value;
+                    item.oficina = inputOficina.value;
+                    item.obs = inputObs.value;
+                }
+            });
+            salvarLocalStorage();
+            renderizarTudo();
+            alert('Todas as alterações de manutenção foram salvas com sucesso!');
+        }
+
+        function renderizarRelatorioKm(dados) {
+            let mostrarBateu = document.getElementById('checkBateuMeta').checked;
+            let mostrarFora = document.getElementById('checkForaMeta').checked;
+
+            let dadosFiltradosMeta = dados.filter(item => {
+                let kmRodadoMes = Number(item.kmMes) || 0;
+                let kmMetaMes = Number(item.kmMeta) || 0;
+                let bateu = (kmMetaMes - kmRodadoMes) <= 0;
+
+                if (bateu && !mostrarBateu) return false;
+                if (!bateu && !mostrarFora) return false;
+                return true;
+            });
+
+            let dadosOrdenados = [...dadosFiltradosMeta].sort((a, b) => (Number(b.kmMes) || 0) - (Number(a.kmMes) || 0));
+            let tbody = document.getElementById('tabelaRelatorioKm');
+            tbody.innerHTML = '';
+
+            dadosOrdenados.forEach(item => {
+                let kmRodadoMes = Number(item.kmMes) || 0;
+                let kmMetaMes = Number(item.kmMeta) || 0;
+                let restam = kmMetaMes - kmRodadoMes;
+                let statusMeta = restam <= 0 ? 'Meta Atingida 🎉' : `${restam.toLocaleString()} km faltam`;
+                
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${item.gerenteResponsavel || '-'}</b></td>
+                    <td>${item.motoristaResponsavel || '-'}</td>
+                    <td>${item.placa}</td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>${kmRodadoMes.toLocaleString()} km</td>
+                    <td>${kmMetaMes.toLocaleString()} km</td>
+                    <td><b>${restam > 0 ? restam.toLocaleString() + ' km' : '0 km'}</b></td>
+                    <td><span class="badge ${restam <= 0 ? 'badge-success' : 'badge-danger'}">${statusMeta}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderizarBaseCompleta(dados) {
+            let tbody = document.getElementById('tabelaBaseCompleta');
+            tbody.innerHTML = '';
+            dados.forEach((item) => {
+                let isSelected = item.placa === placaAtivaSelecionada;
+                let tr = document.createElement('tr');
+                if(isSelected) tr.classList.add('row-selected');
+                
+                tr.innerHTML = `
+                    <td>
+                        <button class="btn btn-danger" style="padding: 6px 10px; font-size: 0.75rem;" onclick="removerRegistro('${item.placa}')">🗑️</button>
+                    </td>
+                    <td style="font-weight: bold;">${item.placa}</td>
+                    <td><input type="text" class="table-input" value="${item.motoristaResponsavel || ''}" onchange="editarCampo('${item.placa}', 'motoristaResponsavel', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.empresa || ''}" onchange="editarCampo('${item.placa}', 'empresa', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.tipo || ''}" onchange="editarCampo('${item.placa}', 'tipo', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.modelo || ''}" onchange="editarCampo('${item.placa}', 'modelo', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.gerenteResponsavel || ''}" onchange="editarCampo('${item.placa}', 'gerenteResponsavel', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.lotacao || ''}" onchange="editarCampo('${item.placa}', 'lotacao', this.value)"></td>
+                    <td><input type="date" class="table-input" value="${item.dataUltimaTrocaOleo || ''}" onchange="editarCampo('${item.placa}', 'dataUltimaTrocaOleo', this.value)"></td>
+                    <td><input type="date" class="table-input" value="${item.validadeCrlv || ''}" onchange="editarCampo('${item.placa}', 'validadeCrlv', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${Number(item.kmAtual) || 0}" onchange="editarCampo('${item.placa}', 'kmAtual', Number(this.value))"></td>
+                    <td><input type="number" class="table-input" value="${Number(item.kmMes) || 0}" onchange="editarCampo('${item.placa}', 'kmMes', Number(this.value))"></td>
+                    <td><input type="number" class="table-input" value="${Number(item.kmMeta) || 0}" onchange="editarCampo('${item.placa}', 'kmMeta', Number(this.value))"></td>
+                    <td><input type="number" class="table-input" value="${Number(item.kmSemana) || 0}" onchange="editarCampo('${item.placa}', 'kmSemana', Number(this.value))"></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editarCampo(placa, campo, valor) {
+            let item = baseFrota.find(i => i.placa === placa);
+            if(item) {
+                item[campo] = valor;
+                renderizarTudo();
+            }
+        }
+
+        function removerRegistro(placa) {
+            if(confirm(`Tem certeza que deseja excluir o veículo ${placa}?`)) {
+                baseFrota = baseFrota.filter(i => i.placa !== placa);
+                popularFiltrosSelects();
+                renderizarTudo();
+            }
+        }
+
+        function fazerBackupJSON() {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(baseFrota, null, 2));
+            let dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "backup_frota_" + new Date().toISOString().slice(0,10) + ".json");
+            dlAnchorElem.click();
+        }
+
+        function restaurarBackupJSON(event) {
+            let arquivo = event.target.files[0];
+            if(!arquivo) return;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let dadosRestaurados = JSON.parse(e.target.result);
+                    if(Array.isArray(dadosRestaurados) && dadosRestaurados.length > 0 && dadosRestaurados[0].placa) {
+                        baseFrota = dadosRestaurados;
+                        popularFiltrosSelects();
+                        renderizarTudo();
+                        alert(`Backup restaurado com sucesso! ${baseFrota.length} veículos carregados.`);
+                    } else {
+                        alert("Arquivo JSON inválido ou formato incorreto.");
+                    }
+                } catch (err) {
+                    alert("Erro ao ler o arquivo JSON.");
+                }
+                event.target.value = "";
+            };
+            reader.readAsText(arquivo);
+        }
+
+        function abrirModalCadastro() { document.getElementById('modalCadastro').style.display = 'flex'; }
+        function fecharModalCadastro() { document.getElementById('modalCadastro').style.display = 'none'; }
+
+        function salvarNovoRegistro() {
+            let placa = document.getElementById('cadPlaca').value.toUpperCase().trim();
+            if(!placa) { alert('Informe a placa.'); return; }
+
+            baseFrota.push({
+                placa, 
+                motoristaResponsavel: document.getElementById('cadMotorista').value || '-', 
+                empresa: document.getElementById('cadEmpresa').value || 'Eqtl Go', 
+                tipo: document.getElementById('cadTipo').value || '-', 
+                modelo: document.getElementById('cadModelo').value || '-',
+                gerenteResponsavel: document.getElementById('cadGerente').value || '-', 
+                lotacao: document.getElementById('cadLotacao').value || '-', 
+                regional: 'Sul', 
+                dataUltimaTrocaOleo: document.getElementById('cadDataTrocaOleo').value || '',
+                validadeCrlv: document.getElementById('cadValidadeCrlv').value || '',
+                kmAtual: Number(document.getElementById('cadKmAtual').value) || 0, 
+                kmMes: 0, 
+                kmMeta: Number(document.getElementById('cadKmMeta').value) || 2500, 
+                kmSemana: 0,
+                obs: 'Novo Cadastro', 
+                status: document.getElementById('cadStatusManutencao').value,
+                dataInicioManutencao: '', dataFimManutencao: '', oficina: '',
+                chassi: '', renavam: '', marca: '', cor: '', combustivel: 'Diesel', ano: '', acessorios: ''
+            });
+
+            fecharModalCadastro();
+            popularFiltrosSelects();
+            renderizarTudo();
+        }
+
+        function abrirModalKm() { document.getElementById('modalKm').style.display = 'flex'; }
+        function fecharModalKm() { document.getElementById('modalKm').style.display = 'none'; }
+
+        function atualizarKmVeiculoModal() {
+            let placa = document.getElementById('selectPlacaKm').value;
+            let veiculo = baseFrota.find(i => i.placa === placa);
+            if(veiculo) {
+                let m = Number(document.getElementById('inputNovoKmMes').value);
+                let s = Number(document.getElementById('inputNovoKmSemana').value);
+                let mt = Number(document.getElementById('inputNovaMeta').value);
+                if(!isNaN(m)) veiculo.kmMes = m;
+                if(!isNaN(s)) veiculo.kmSemana = s;
+                if(!isNaN(mt) && mt > 0) veiculo.kmMeta = mt;
+                fecharModalKm();
+                renderizarTudo();
+            }
+        }
+
+        function importarArquivoBase(event) {
+            let arquivo = event.target.files[0];
+            if(!arquivo) return;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data = new Uint8Array(e.target.result);
+                    let workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    let worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    let jsonBruto = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                    
+                    if(jsonBruto.length === 0) return alert("Arquivo vazio.");
+
+                    baseFrota = jsonBruto.map(row => {
+                        let placa = String(row.Placa || row.placa || "").trim();
+                        if(!placa) return null;
+                        return {
+                            placa: placa,
+                            motoristaResponsavel: String(row.MotoristaResponsavel || row.Motorista || "-"),
+                            empresa: String(row.Empresa || "Eqtl Go"),
+                            tipo: String(row.Tipo || "-"),
+                            modelo: String(row.Modelo || "-"),
+                            gerenteResponsavel: String(row.GerenteResponsavel || "-"),
+                            lotacao: String(row.Lotacao || "-"),
+                            dataUltimaTrocaOleo: String(row.DataUltimaTrocaOleo || row.DataTrocaOleo || ""),
+                            validadeCrlv: String(row.ValidadeCrlv || row.StatusCrlv || ""),
+                            kmAtual: Number(row.KmAtual || 0),
+                            kmMes: Number(row.KmRodadoMes || row.KmMes || 0),
+                            kmMeta: Number(row.MetaKmMes || 2500),
+                            kmSemana: Number(row.KmSemana || 0),
+                            obs: String(row.Obs || ""),
+                            status: String(row.Status || "Operação"),
+                            dataInicioManutencao: String(row.DataInicioManutencao || ""),
+                            dataFimManutencao: String(row.DataFimManutencao || ""),
+                            oficina: String(row.Oficina || "")
+                        };
+                    }).filter(Boolean);
+                    popularFiltrosSelects();
+                    renderizarTudo();
+                } catch (err) { alert("Erro ao ler Excel."); }
+                event.target.value = "";
+            };
+            reader.readAsArrayBuffer(arquivo);
+        }
+
+        function mudarAba(event, abaId) {
+            document.querySelectorAll('.content-body').forEach(aba => aba.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(abaId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function exportarBaseExcel() {
+            let csv = 'Placa,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
+            baseFrota.forEach(i => {
+                csv += `"${i.placa}","${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
+            });
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'base_frota_export.csv';
+            a.click();
+        }
+    </script>
+</body>
+</html>
