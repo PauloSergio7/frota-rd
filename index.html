@@ -828,6 +828,8 @@
                         <tr>
                             <th class="admin-th-acao" style="display: none;">Excluir</th>
                             <th>Placa</th>
+                            <th>Chassi</th>
+                            <th>Renavam</th>
                             <th>Motorista Responsável</th>
                             <th>Empresa</th>
                             <th>Tipo</th>
@@ -900,6 +902,14 @@
                 <div class="modal-form-group">
                     <label>Placa:</label>
                     <input type="text" id="cadPlaca" placeholder="Ex: ABC1D23">
+                </div>
+                <div class="modal-form-group">
+                    <label>Chassi:</label>
+                    <input type="text" id="cadChassi" placeholder="Número do Chassi">
+                </div>
+                <div class="modal-form-group">
+                    <label>Renavam:</label>
+                    <input type="text" id="cadRenavam" placeholder="Número do Renavam">
                 </div>
                 <div class="modal-form-group">
                     <label>Status Inicial:</label>
@@ -1011,7 +1021,6 @@
         let pausarSincronizacao = false;
         let ultimoJsonSalvo = "";
         
-        // Controle de Permissão Admin (Senha padrão: "admin123" - altere conforme desejar)
         let usuarioAdminLogado = false;
         const SENHA_ADMIN = "Paulo123";
 
@@ -1059,7 +1068,6 @@
                     badgeStatus.innerText = "🔓 Administrador";
                     badgeStatus.className = "badge badge-success";
                 }
-                // Habilita campos do painel e fichas
                 document.getElementById('inputGerenteDash').disabled = false;
                 document.getElementById('inputMotoristaDash').disabled = false;
                 document.getElementById('inputKmAtualDash').disabled = false;
@@ -1087,7 +1095,6 @@
                     badgeStatus.innerText = "🔒 Modo Consulta";
                     badgeStatus.className = "badge badge-warning";
                 }
-                // Desabilita campos
                 document.getElementById('inputGerenteDash').disabled = true;
                 document.getElementById('inputMotoristaDash').disabled = true;
                 document.getElementById('inputKmAtualDash').disabled = true;
@@ -1119,7 +1126,7 @@
         }
 
         function salvarLocalStorage() {
-            if (!usuarioAdminLogado) return; // Impede salvamento se não for admin
+            if (!usuarioAdminLogado) return;
             if (!supabaseClient) {
                 definirStatusSync('⚠️ Banco de dados não configurado', 'var(--danger)');
                 return;
@@ -1666,7 +1673,6 @@
                 document.getElementById('modalOficina').value = item.oficina || '';
                 document.getElementById('modalObsDetalhada').value = item.obs || '';
                 
-                // Bloqueia inputs do modal se não for admin
                 let inputsModal = document.querySelectorAll('#modalManutencaoDetalhes input, #modalManutencaoDetalhes textarea');
                 inputsModal.forEach(inp => inp.disabled = !usuarioAdminLogado);
 
@@ -1774,6 +1780,8 @@
                 tr.innerHTML = `
                     ${usuarioAdminLogado ? acoesHtml : ''}
                     <td style="font-weight: bold;">${item.placa}</td>
+                    <td><input type="text" class="table-input" value="${item.chassi || ''}" ${ro} onchange="editarCampo('${item.placa}', 'chassi', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${item.renavam || ''}" ${ro} onchange="editarCampo('${item.placa}', 'renavam', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.motoristaResponsavel || ''}" ${ro} onchange="editarCampo('${item.placa}', 'motoristaResponsavel', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.empresa || ''}" ${ro} onchange="editarCampo('${item.placa}', 'empresa', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.tipo || ''}" ${ro} onchange="editarCampo('${item.placa}', 'tipo', this.value)"></td>
@@ -1860,6 +1868,8 @@
 
             baseFrota.push({
                 placa, 
+                chassi: document.getElementById('cadChassi').value || '',
+                renavam: document.getElementById('cadRenavam').value || '',
                 motoristaResponsavel: document.getElementById('cadMotorista').value || '-', 
                 empresa: document.getElementById('cadEmpresa').value || 'Eqtl Go', 
                 tipo: document.getElementById('cadTipo').value || '-', 
@@ -1876,7 +1886,7 @@
                 obs: 'Novo Cadastro', 
                 status: document.getElementById('cadStatusManutencao').value,
                 dataInicioManutencao: '', dataFimManutencao: '', oficina: '',
-                chassi: '', renavam: '', marca: '', cor: '', combustivel: 'Diesel', ano: '', acessorios: ''
+                marca: '', cor: '', combustivel: 'Diesel', ano: '', acessorios: ''
             });
 
             fecharModalCadastro();
@@ -1925,6 +1935,8 @@
                         if(!placa) return null;
                         return {
                             placa: placa,
+                            chassi: String(row.Chassi || row.chassi || ""),
+                            renavam: String(row.Renavam || row.renavam || ""),
                             motoristaResponsavel: String(row.MotoristaResponsavel || row.Motorista || "-"),
                             empresa: String(row.Empresa || "Eqtl Go"),
                             tipo: String(row.Tipo || "-"),
@@ -1939,13 +1951,14 @@
                             kmSemana: Number(row.KmSemana || 0),
                             obs: String(row.Obs || ""),
                             status: String(row.Status || "Operação"),
-                            dataInicioManutenc_ao: String(row.DataInicioManutencao || ""),
+                            dataInicioManutencao: String(row.DataInicioManutencao || ""),
                             dataFimManutencao: String(row.DataFimManutencao || ""),
                             oficina: String(row.Oficina || "")
                         };
                     }).filter(Boolean);
                     popularFiltrosSelects();
                     renderizarTudo();
+                    alert("Dados importados com sucesso!");
                 } catch (err) { alert("Erro ao ler Excel."); }
                 event.target.value = "";
             };
@@ -1960,9 +1973,9 @@
         }
 
         function exportarBaseExcel() {
-            let csv = 'Placa,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
+            let csv = 'Placa,Chassi,Renavam,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
             baseFrota.forEach(i => {
-                csv += `"${i.placa}","${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
+                csv += `"${i.placa}","${i.chassi || ''}","${i.renavam || ''}","${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
             });
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
