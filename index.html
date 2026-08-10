@@ -612,6 +612,14 @@
                     <input type="text" id="fichaRenavam" placeholder="Número do Renavam..." disabled class="admin-input">
                 </div>
                 <div class="spec-item">
+                    <label>KM da Última Revisão</label>
+                    <input type="number" id="fichaKmUltimaRevisao" placeholder="Ex: 30000" disabled class="admin-input">
+                </div>
+                <div class="spec-item">
+                    <label>KM da Próxima Revisão</label>
+                    <input type="number" id="fichaKmProximaRevisao" placeholder="Ex: 40000" disabled class="admin-input">
+                </div>
+                <div class="spec-item">
                     <label>Marca</label>
                     <input type="text" id="fichaMarca" placeholder="Ex: Toyota, Fiat..." disabled class="admin-input">
                 </div>
@@ -652,10 +660,10 @@
             </div>
         </div>
 
-        <!-- ABA 3: DOCUMENTAÇÃO & OCIOSIDADE -->
+        <!-- ABA 3: DOCUMENTAÇÃO & OCIOSIDADE (ALERTAS) -->
         <div id="aba-documentos" class="content-body">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3>⚠️ Alertas de Troca de Óleo, Ociosidade e CRLV</h3>
+                <h3>⚠️ Alertas de Revisão, Ociosidade e CRLV</h3>
                 <button class="btn btn-outline admin-only" onclick="abrirModalKm()" disabled style="opacity: 0.5; cursor: not-allowed;">Atualizar KM (Modal)</button>
             </div>
             <div class="table-container">
@@ -665,8 +673,9 @@
                             <th>Placa</th>
                             <th>Motorista</th>
                             <th>Modelo</th>
-                            <th>Data Última Troca de Óleo</th>
-                            <th>Alerta Troca de Óleo (6 Meses)</th>
+                            <th>KM ATUAL</th>
+                            <th>KM DA ÚLTIMA REVISÃO</th>
+                            <th>KM DA PRÓXIMA REVISÃO</th>
                             <th>Validade CRLV</th>
                             <th>Status CRLV</th>
                             <th>KM Mês</th>
@@ -830,6 +839,8 @@
                             <th>Placa</th>
                             <th>Chassi</th>
                             <th>Renavam</th>
+                            <th>KM Última Revisão</th>
+                            <th>KM Próxima Revisão</th>
                             <th>Motorista Responsável</th>
                             <th>Empresa</th>
                             <th>Tipo</th>
@@ -910,6 +921,14 @@
                 <div class="modal-form-group">
                     <label>Renavam:</label>
                     <input type="text" id="cadRenavam" placeholder="Número do Renavam">
+                </div>
+                <div class="modal-form-group">
+                    <label>KM Última Revisão:</label>
+                    <input type="number" id="cadKmUltimaRevisao" placeholder="Ex: 30000">
+                </div>
+                <div class="modal-form-group">
+                    <label>KM Próxima Revisão:</label>
+                    <input type="number" id="cadKmProximaRevisao" placeholder="Ex: 40000">
                 </div>
                 <div class="modal-form-group">
                     <label>Status Inicial:</label>
@@ -996,9 +1015,9 @@
 
     <script>
         let basePadrao = [
-            { placa: "RBO1A52", motoristaResponsavel: "Marcos Vinicius", empresa: "Eqtl Go", tipo: "Carga Reboque", modelo: "R/EMPRETEC CBE 4.5T", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2025-10-10", validadeCrlv: "2026-10-10", kmAtual: 8400, kmMes: 1200, kmMeta: 2000, kmSemana: 0, obs: "Licenciamento OK", status: "Manutenção", dataInicioManutencao: "", dataFimManutencao: "", oficina: "Oficina Central", chassi: "9BWZZZ375VP001234", renavam: "00112233445", marca: "Empretec", cor: "Prata", combustivel: "Diesel", ano: "2023/2023", acessorios: "Cinta de amarração, estepe" },
-            { placa: "SCH4C78", motoristaResponsavel: "Paulo Roberto", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2026-04-15", validadeCrlv: "2025-05-10", kmAtual: 34200, kmMes: 3100, kmMeta: 3000, kmSemana: 450, obs: "Nenhuma", status: "Operação", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7123456", renavam: "00987654321", marca: "Toyota", cor: "Branco", combustivel: "Diesel", ano: "2022/2023", acessorios: "Capota marítima, protetor de caçamba, engate" },
-            { placa: "SCH5E98", motoristaResponsavel: "Lucas Souza", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Catalão", regional: "Sul", dataUltimaTrocaOleo: "2025-01-20", validadeCrlv: "2026-12-30", kmAtual: 12500, kmMes: 0, kmMeta: 2500, kmSemana: 0, obs: "Veículo Ocioso", status: "Ociosa", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7654321", renavam: "00554433221", marca: "Toyota", cor: "Preto", combustivel: "Diesel", ano: "2023/2024", acessorios: "Protetor de caçamba, estribo lateral" }
+            { placa: "RBO1A52", motoristaResponsavel: "Marcos Vinicius", empresa: "Eqtl Go", tipo: "Carga Reboque", modelo: "R/EMPRETEC CBE 4.5T", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2025-10-10", validadeCrlv: "2026-10-10", kmAtual: 19200, kmMes: 1200, kmMeta: 2000, kmSemana: 0, obs: "Licenciamento OK", status: "Manutenção", dataInicioManutencao: "", dataFimManutencao: "", oficina: "Oficina Central", chassi: "9BWZZZ375VP001234", renavam: "00112233445", kmUltimaRevisao: 8000, kmProximaRevisao: 18000, marca: "Empretec", cor: "Prata", combustivel: "Diesel", ano: "2023/2023", acessorios: "Cinta de amarração, estepe" },
+            { placa: "SCH4C78", motoristaResponsavel: "Paulo Roberto", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Morrinhos", regional: "Sul", dataUltimaTrocaOleo: "2026-04-15", validadeCrlv: "2025-05-10", kmAtual: 34200, kmMes: 3100, kmMeta: 3000, kmSemana: 450, obs: "Nenhuma", status: "Operação", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7123456", renavam: "00987654321", kmUltimaRevisao: 30000, kmProximaRevisao: 40000, marca: "Toyota", cor: "Branco", combustivel: "Diesel", ano: "2022/2023", acessorios: "Capota marítima, protetor de caçamba, engate" },
+            { placa: "SCH5E98", motoristaResponsavel: "Lucas Souza", empresa: "Eqtl Go", tipo: "Pickup Media", modelo: "Hilux CD 4x4", gerenteResponsavel: "Itamar Albuquerque", lotacao: "Catalão", regional: "Sul", dataUltimaTrocaOleo: "2025-01-20", validadeCrlv: "2026-12-30", kmAtual: 12500, kmMes: 0, kmMeta: 2500, kmSemana: 0, obs: "Veículo Ocioso", status: "Ociosa", dataInicioManutencao: "", dataFimManutencao: "", oficina: "", chassi: "8AJFR22G0P7654321", renavam: "00554433221", kmUltimaRevisao: 10000, kmProximaRevisao: 20000, marca: "Toyota", cor: "Preto", combustivel: "Diesel", ano: "2023/2024", acessorios: "Protetor de caçamba, estribo lateral" }
         ];
 
         // =====================================================================
@@ -1410,12 +1429,11 @@
                 if(item.status === 'Operação') emOperacaoCount++;
                 let temAlerta = false;
 
-                if (item.dataUltimaTrocaOleo) {
-                    let diffDias = (dataAtual - new Date(item.dataUltimaTrocaOleo)) / (1000 * 60 * 60 * 24);
-                    if (diffDias > 180) temAlerta = true;
-                } else {
-                    temAlerta = true;
-                }
+                const kmAtual = Number(item.kmAtual) || 0;
+                const kmUltimaRevisao = Number(item.kmUltimaRevisao) || 0;
+                const kmProximaRevisao = Number(item.kmProximaRevisao) || (kmUltimaRevisao + 10000);
+                const diferencaKm = kmProximaRevisao - kmAtual;
+                if (diferencaKm <= 0) temAlerta = true;
 
                 if (calcularStatusCrlv(item.validadeCrlv) === "Vencido") temAlerta = true;
                 if (temAlerta) veiculosComAlertaCount++;
@@ -1509,6 +1527,8 @@
                 document.getElementById('fichaPlaca').value = veiculo.placa;
                 document.getElementById('fichaChassi').value = veiculo.chassi || '';
                 document.getElementById('fichaRenavam').value = veiculo.renavam || '';
+                document.getElementById('fichaKmUltimaRevisao').value = veiculo.kmUltimaRevisao !== undefined ? veiculo.kmUltimaRevisao : '';
+                document.getElementById('fichaKmProximaRevisao').value = veiculo.kmProximaRevisao !== undefined ? veiculo.kmProximaRevisao : '';
                 document.getElementById('fichaMarca').value = veiculo.marca || '';
                 document.getElementById('fichaModelo').value = veiculo.modelo || '';
                 document.getElementById('fichaAno').value = veiculo.ano || '';
@@ -1546,6 +1566,8 @@
             if(veiculo) {
                 veiculo.chassi = document.getElementById('fichaChassi').value;
                 veiculo.renavam = document.getElementById('fichaRenavam').value;
+                veiculo.kmUltimaRevisao = Number(document.getElementById('fichaKmUltimaRevisao').value) || 0;
+                veiculo.kmProximaRevisao = Number(document.getElementById('fichaKmProximaRevisao').value) || 0;
                 veiculo.marca = document.getElementById('fichaMarca').value;
                 veiculo.modelo = document.getElementById('fichaModelo').value;
                 veiculo.ano = document.getElementById('fichaAno').value;
@@ -1564,24 +1586,30 @@
             let tbody = document.getElementById('tabelaDocumentosOciosidade');
             if(!tbody) return;
             tbody.innerHTML = '';
-            let dataAtual = new Date();
 
             dados.forEach(item => {
-                let kmMesVal = Number(item.kmMes) || 0;
-                let statusTrocaOleoHtml = "";
+                const kmAtual = Number(item.kmAtual) || 0;
+                const kmUltimaRevisao = Number(item.kmUltimaRevisao) || 0;
+                // Cálculo automático: se não houver KM de próxima revisão definido, soma 10000 à última revisão
+                const kmProximaRevisao = Number(item.kmProximaRevisao) || (kmUltimaRevisao + 10000);
                 
-                if (item.dataUltimaTrocaOleo) {
-                    let dataTroca = new Date(item.dataUltimaTrocaOleo);
-                    let diffDias = (dataAtual - dataTroca) / (1000 * 60 * 60 * 24);
-                    let dataFormatada = dataTroca.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                let diferencaKm = kmProximaRevisao - kmAtual;
+                let statusAlerta = '';
+                let classeCss = '';
 
-                    if (diffDias <= 180) {
-                        statusTrocaOleoHtml = `<span class="badge badge-success">Em dia (${dataFormatada})</span>`;
-                    } else {
-                        statusTrocaOleoHtml = `<span class="badge badge-danger">Óleo Vencido (> 6 meses - ${dataFormatada})</span>`;
-                    }
+                if (diferencaKm < 0) {
+                    let kmPassado = Math.abs(diferencaKm);
+                    statusAlerta = `🔴 Revisão Atrasada (Passou ${kmPassado.toLocaleString()} km)`;
+                    classeCss = 'badge badge-danger';
+                } else if (diferencaKm === 0) {
+                    statusAlerta = `🔴 Fazer Revisão (Atingiu o limite de revisão)`;
+                    classeCss = 'badge badge-danger';
+                } else if (diferencaKm <= 1000) {
+                    statusAlerta = `⚠️ Próxima ao Vencimento (Faltam ${diferencaKm.toLocaleString()} km)`;
+                    classeCss = 'badge badge-warning';
                 } else {
-                    statusTrocaOleoHtml = `<span class="badge badge-danger">Óleo Vencido (Sem Data)</span>`;
+                    statusAlerta = `✅ Em Dia (Faltam ${diferencaKm.toLocaleString()} km)`;
+                    classeCss = 'badge badge-success';
                 }
 
                 let statusCrlvVal = calcularStatusCrlv(item.validadeCrlv);
@@ -1589,6 +1617,7 @@
                 let valCrlvFormatada = item.validadeCrlv ? new Date(item.validadeCrlv + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada';
                 let statusCrlvHtml = `<span class="badge ${crlvBadgeClass}">${statusCrlvVal}</span>`;
 
+                let kmMesVal = Number(item.kmMes) || 0;
                 let textoAlertaOciosidade = '';
                 let classeBadgeAlertaOciosidade = '';
 
@@ -1608,8 +1637,9 @@
                     <td><b>${item.placa}</b></td>
                     <td>${item.motoristaResponsavel || '-'}</td>
                     <td>${item.modelo || '-'}</td>
-                    <td>${item.dataUltimaTrocaOleo ? new Date(item.dataUltimaTrocaOleo + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                    <td>${statusTrocaOleoHtml}</td>
+                    <td>${kmAtual.toLocaleString()} km</td>
+                    <td>${kmUltimaRevisao.toLocaleString()} km</td>
+                    <td>${kmProximaRevisao.toLocaleString()} km <span class="${classeCss}">${statusAlerta}</span></td>
                     <td>${valCrlvFormatada}</td>
                     <td>${statusCrlvHtml}</td>
                     <td>${kmMesVal.toLocaleString()} km</td>
@@ -1782,6 +1812,8 @@
                     <td style="font-weight: bold;">${item.placa}</td>
                     <td><input type="text" class="table-input" value="${item.chassi || ''}" ${ro} onchange="editarCampo('${item.placa}', 'chassi', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.renavam || ''}" ${ro} onchange="editarCampo('${item.placa}', 'renavam', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${item.kmUltimaRevisao !== undefined ? item.kmUltimaRevisao : ''}" ${ro} onchange="editarCampo('${item.placa}', 'kmUltimaRevisao', Number(this.value))"></td>
+                    <td><input type="number" class="table-input" value="${item.kmProximaRevisao !== undefined ? item.kmProximaRevisao : ''}" ${ro} onchange="editarCampo('${item.placa}', 'kmProximaRevisao', Number(this.value))"></td>
                     <td><input type="text" class="table-input" value="${item.motoristaResponsavel || ''}" ${ro} onchange="editarCampo('${item.placa}', 'motoristaResponsavel', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.empresa || ''}" ${ro} onchange="editarCampo('${item.placa}', 'empresa', this.value)"></td>
                     <td><input type="text" class="table-input" value="${item.tipo || ''}" ${ro} onchange="editarCampo('${item.placa}', 'tipo', this.value)"></td>
@@ -1870,6 +1902,8 @@
                 placa, 
                 chassi: document.getElementById('cadChassi').value || '',
                 renavam: document.getElementById('cadRenavam').value || '',
+                kmUltimaRevisao: Number(document.getElementById('cadKmUltimaRevisao').value) || 0,
+                kmProximaRevisao: Number(document.getElementById('cadKmProximaRevisao').value) || 0,
                 motoristaResponsavel: document.getElementById('cadMotorista').value || '-', 
                 empresa: document.getElementById('cadEmpresa').value || 'Eqtl Go', 
                 tipo: document.getElementById('cadTipo').value || '-', 
@@ -1937,6 +1971,8 @@
                             placa: placa,
                             chassi: String(row.Chassi || row.chassi || ""),
                             renavam: String(row.Renavam || row.renavam || ""),
+                            kmUltimaRevisao: Number(row.KmUltimaRevisao || row.kmUltimaRevisao || 0),
+                            kmProximaRevisao: Number(row.KmProximaRevisao || row.kmProximaRevisao || 0),
                             motoristaResponsavel: String(row.MotoristaResponsavel || row.Motorista || "-"),
                             empresa: String(row.Empresa || "Eqtl Go"),
                             tipo: String(row.Tipo || "-"),
@@ -1973,9 +2009,9 @@
         }
 
         function exportarBaseExcel() {
-            let csv = 'Placa,Chassi,Renavam,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
+            let csv = 'Placa,Chassi,Renavam,KmUltimaRevisao,KmProximaRevisao,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
             baseFrota.forEach(i => {
-                csv += `"${i.placa}","${i.chassi || ''}","${i.renavam || ''}","${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
+                csv += `"${i.placa}","${i.chassi || ''}","${i.renavam || ''}",${i.kmUltimaRevisao || 0},${i.kmProximaRevisao || 0},"${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
             });
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
