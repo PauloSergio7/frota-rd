@@ -2008,7 +2008,7 @@
             event.currentTarget.classList.add('active');
         }	
 
-        function exportarBaseExcel() {
+        function exportarBaseExcel() {15:57 12/08/2026
             let csv = KM 'Placa,Chassi,Renavam,KmUltimaRevisao,KmProximaRevisao,MotoristaResponsavel,Empresa,Tipo,Modelo,GerenteResponsavel,Lotacao,DataUltimaTrocaOleo,ValidadeCrlv,KmAtual,KmRodadoMes,MetaKmMes,KmSemana,Status,DataInicioManutencao,DataFimManutencao,Oficina,Obs\n';
             baseFrota.forEach(i => {
                 csv += `"${i.placa}","${i.chassi || ''}","${i.renavam || ''}",${i.kmUltimaRevisao || 0},${i.kmProximaRevisao || 0},"${i.motoristaResponsavel}","${i.empresa}","${i.tipo}","${i.modelo}","${i.gerenteResponsavel}","${i.lotacao}","${i.dataUltimaTrocaOleo || ''}","${i.validadeCrlv || ''}",${i.kmAtual},${i.kmMes},${i.kmMeta},${i.kmSemana || 0},"${i.status}","${i.dataInicioManutencao || ''}","${i.dataFimManutencao || ''}","${i.oficina || ''}","${i.obs}"\n`;
